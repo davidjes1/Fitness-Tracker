@@ -2,6 +2,16 @@
 
 This guide will help you configure Firebase for the Training Tracker application.
 
+## Project Structure
+
+The application is now organized into separate files for better security and maintainability:
+
+- `index.html` - Main HTML structure
+- `styles.css` - All styling
+- `app.js` - Application logic
+- `firebase-config.js` - Your Firebase credentials (gitignored, never committed)
+- `firebase-config.example.js` - Template showing configuration structure
+
 ## Step 1: Create a Firebase Project
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)
@@ -30,11 +40,10 @@ const firebaseConfig = {
 };
 ```
 
-## Step 4: Update index.html
+## Step 4: Update firebase-config.js
 
-1. Open `index.html` in your editor
-2. Find the `firebaseConfig` object (around line 681)
-3. Replace the placeholder values with your actual Firebase configuration values:
+1. Open `firebase-config.js` in your editor (this file is already created and gitignored)
+2. Replace the placeholder values with your actual Firebase configuration values:
 
 ```javascript
 const firebaseConfig = {
@@ -46,6 +55,8 @@ const firebaseConfig = {
     appId: "YOUR_APP_ID"                 // Replace with your appId
 };
 ```
+
+**Important:** This file is listed in `.gitignore` and will NOT be committed to GitHub, keeping your credentials safe.
 
 ## Step 5: Enable Firestore Database
 
@@ -91,10 +102,27 @@ service cloud.firestore {
 
 ## Step 8: Test Your Application
 
-1. Open `index.html` in a web browser
-2. Click "Sign In Anonymously"
-3. Try logging a workout
-4. Check the Firebase Console → Firestore Database to see your data
+### Local Testing
+
+1. Open `index.html` in a web browser (or use a local server for better compatibility)
+   ```bash
+   # Option 1: Simple local server with Python
+   python -m http.server 8000
+
+   # Option 2: Simple local server with Node.js
+   npx serve .
+   ```
+2. Navigate to `http://localhost:8000` (or the URL shown)
+3. Click "Sign In Anonymously"
+4. Try logging a workout
+5. Check the Firebase Console → Firestore Database to see your data
+
+### File Loading
+
+The application loads files in this order:
+1. `index.html` - Loads `styles.css` and Firebase SDKs
+2. `firebase-config.js` - Your credentials (must be present locally)
+3. `app.js` - All application logic
 
 ## Data Structure
 
@@ -111,9 +139,16 @@ users/
 ## Troubleshooting
 
 ### "Firebase not initialized" error
-- Check that your Firebase configuration values are correct
+- Check that your Firebase configuration values are correct in `firebase-config.js`
+- Ensure `firebase-config.js` exists in the project root directory
 - Make sure you've enabled Firestore and Authentication in the Firebase Console
 - Check the browser console for more detailed error messages
+- If testing locally, use a local web server instead of opening the HTML file directly
+
+### "firebase-config.js not found" (404 error)
+- Verify that `firebase-config.js` exists in your project root
+- If deploying to GitHub Pages, see `DEPLOYMENT.md` for secure deployment strategies
+- Check the browser's Network tab to see if the file is being requested correctly
 
 ### Data not saving
 - Verify that you're signed in (check for "Anonymous User" in the header)
@@ -125,8 +160,26 @@ users/
 - If you clear browser data or the session expires, the anonymous user ID changes
 - For persistent data across sessions, implement email/password authentication
 
+## Benefits of Separated File Structure
+
+### Security
+- **Credentials Protected**: `firebase-config.js` is gitignored, never committed to version control
+- **Safe Sharing**: You can share your code publicly without exposing credentials
+- **Easy Updates**: Update credentials without touching your main codebase
+
+### Maintainability
+- **Organized Code**: Separate files for HTML, CSS, and JavaScript
+- **Easier Debugging**: Find and fix issues faster with organized code
+- **Collaboration Ready**: Other developers can easily understand the project structure
+
+### Deployment
+- **GitHub Pages Compatible**: Deploy safely with multiple credential strategies
+- **Firebase Hosting Ready**: Direct deployment to Firebase infrastructure
+- **Version Control Friendly**: Clean git history without credential changes
+
 ## Next Steps
 
+- **Deploy Your App**: See `DEPLOYMENT.md` for GitHub Pages or Firebase Hosting deployment
 - **Add Email Authentication**: Enable email/password sign-in for persistent accounts
 - **Add Google Sign-In**: Enable Google authentication for easy login
 - **Export/Import Data**: Add functionality to backup and restore workout data
