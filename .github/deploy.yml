@@ -1,0 +1,29 @@
+ name: Deploy to GitHub Pages
+   on:
+     push:
+       branches: [ main ]
+   jobs:
+     deploy:
+       runs-on: ubuntu-latest
+       steps:
+         - uses: actions/checkout@v3
+         - name: Create Firebase Config
+           run: |
+             cat > firebase-config.js <<'EOF'
+             const firebaseConfig = {
+                apiKey: "AIzaSyDwqY05CZVfzt0ER7jFsqOPXrorqFhVopc",
+                authDomain: "training-tracker-668ba.firebaseapp.com",
+                projectId: "training-tracker-668ba",
+                storageBucket: "training-tracker-668ba.firebasestorage.app",
+                messagingSenderId: "737820426489",
+                appId: "1:737820426489:web:76294321246873982aa228",
+                measurementId: "G-GRGDFEW6S1"
+                };
+             EOF
+         - name: Deploy to GitHub Pages
+           uses: peaceiris/actions-gh-pages@v3
+           with:
+             github_token: ${{ secrets.GITHUB_TOKEN }}
+             publish_dir: ./
+
+
