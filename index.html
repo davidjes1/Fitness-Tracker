@@ -525,8 +525,16 @@
 </head>
 <body>
     <div class="header">
-        <h1>⚡ Training Tracker</h1>
-        <span class="phase-badge" id="currentPhase">Phase 1: Foundation</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h1>⚡ Training Tracker</h1>
+                <span class="phase-badge" id="currentPhase">Phase 1: Foundation</span>
+            </div>
+            <div id="authContainer">
+                <button class="btn btn-small" id="authBtn" style="display: none;">Sign In Anonymously</button>
+                <span id="userInfo" style="display: none; color: var(--text-secondary); font-size: 0.9rem;"></span>
+            </div>
+        </div>
     </div>
     
     <div class="nav-tabs">
@@ -675,42 +683,104 @@
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
     <script>
-        // Storage wrapper using window.storage
+        // Firebase Configuration
+        // Replace these values with your Firebase project credentials
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Initialize Firebase
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            auth = firebase.auth();
+            console.log('Firebase initialized successfully');
+        } catch (error) {
+            console.error('Firebase initialization error:', error);
+            alert('Firebase configuration error. Please check your Firebase credentials.');
+        }
+
+        // Storage wrapper using Firebase Firestore
         const Storage = {
             async get(key) {
+                if (!db) {
+                    console.error('Firebase not initialized');
+                    return null;
+                }
+
                 try {
-                    const result = await window.storage.get(key);
-                    return result ? JSON.parse(result.value) : null;
+                    const userId = auth.currentUser?.uid || 'anonymous';
+                    const doc = await db.collection('users').doc(userId).collection('data').doc(key).get();
+
+                    if (doc.exists) {
+                        return doc.data().value;
+                    }
+                    return null;
                 } catch (error) {
-                    console.log(`Key ${key} not found`);
+                    console.error(`Error getting ${key}:`, error);
                     return null;
                 }
             },
-            
+
             async set(key, value) {
+                if (!db) {
+                    console.error('Firebase not initialized');
+                    return false;
+                }
+
                 try {
-                    await window.storage.set(key, JSON.stringify(value));
+                    const userId = auth.currentUser?.uid || 'anonymous';
+                    await db.collection('users').doc(userId).collection('data').doc(key).set({
+                        value: value,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
                     return true;
                 } catch (error) {
                     console.error('Storage error:', error);
                     return false;
                 }
             },
-            
+
             async list(prefix) {
+                if (!db) {
+                    console.error('Firebase not initialized');
+                    return [];
+                }
+
                 try {
-                    const result = await window.storage.list(prefix);
-                    return result ? result.keys : [];
+                    const userId = auth.currentUser?.uid || 'anonymous';
+                    const snapshot = await db.collection('users').doc(userId).collection('data').get();
+                    return snapshot.docs.map(doc => doc.id).filter(id => id.startsWith(prefix || ''));
                 } catch (error) {
                     console.error('Storage error:', error);
                     return [];
                 }
             },
-            
+
             async delete(key) {
+                if (!db) {
+                    console.error('Firebase not initialized');
+                    return false;
+                }
+
                 try {
-                    await window.storage.delete(key);
+                    const userId = auth.currentUser?.uid || 'anonymous';
+                    await db.collection('users').doc(userId).collection('data').doc(key).delete();
                     return true;
                 } catch (error) {
                     console.error('Storage error:', error);
@@ -727,13 +797,70 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
-            await loadData();
+            setupAuthListener();
             setupEventListeners();
             setTodayDate();
-            renderStats();
-            renderHistory();
-            renderProgress();
         });
+
+        function setupAuthListener() {
+            if (!auth) {
+                console.error('Firebase Auth not initialized');
+                return;
+            }
+
+            // Listen for auth state changes
+            auth.onAuthStateChanged(async (user) => {
+                currentUser = user;
+                updateAuthUI(user);
+
+                if (user) {
+                    // User is signed in, load data
+                    await loadData();
+                    renderStats();
+                    renderHistory();
+                    renderProgress();
+                } else {
+                    // User is signed out
+                    workouts = [];
+                    weights = [];
+                }
+            });
+        }
+
+        function updateAuthUI(user) {
+            const authBtn = document.getElementById('authBtn');
+            const userInfo = document.getElementById('userInfo');
+
+            if (user) {
+                authBtn.textContent = 'Sign Out';
+                authBtn.style.display = 'inline-block';
+                userInfo.textContent = user.isAnonymous ? '👤 Anonymous User' : `👤 ${user.email || 'User'}`;
+                userInfo.style.display = 'inline-block';
+            } else {
+                authBtn.textContent = 'Sign In Anonymously';
+                authBtn.style.display = 'inline-block';
+                userInfo.style.display = 'none';
+            }
+        }
+
+        async function handleAuth() {
+            if (!auth) return;
+
+            try {
+                if (currentUser) {
+                    // Sign out
+                    await auth.signOut();
+                    alert('Signed out successfully');
+                } else {
+                    // Sign in anonymously
+                    await auth.signInAnonymously();
+                    alert('Signed in anonymously. Your data will be saved to this session.');
+                }
+            } catch (error) {
+                console.error('Auth error:', error);
+                alert('Authentication error: ' + error.message);
+            }
+        }
 
         async function loadData() {
             workouts = await Storage.get('workouts') || [];
@@ -751,6 +878,12 @@
         }
 
         function setupEventListeners() {
+            // Auth button
+            const authBtn = document.getElementById('authBtn');
+            if (authBtn) {
+                authBtn.addEventListener('click', handleAuth);
+            }
+
             // Navigation
             document.querySelectorAll('.nav-tab').forEach(tab => {
                 tab.addEventListener('click', () => switchView(tab.dataset.view));
